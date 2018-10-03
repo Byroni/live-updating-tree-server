@@ -1,6 +1,7 @@
 const app = require("express")();
 var server = require("http").Server(app);
 const io = require("socket.io")(server);
+const FactoryRepository = require("./DAL/FactoryRepository");
 require("dotenv").config();
 
 const { allowCors } = require("./middleware/helpers");
@@ -24,17 +25,22 @@ io.on("connection", client => {
     var children = Array.from({ length: numNodes }, () =>
       Math.floor(Math.random() * (upperBound - lowerBound) + lowerBound)
     );
-    console.log(id, numNodes, lowerBound, upperBound, children);
     io.sockets.emit("generateChildren", id, children);
   });
 
   //  Get the tree
   client.on("getTree", () => {
-    client.emit("getTree", tree);
+    try {
+      FactoryRepository.getTree(res => {
+        client.emit("getTree", res);
+      });
+    } catch (e) {
+      console.log(e);
+    }
   });
 
   //  Change the factory name
-  client.on("changeFactoryName", ({ id, name }) => {
+  client.on("changeFactoryName", ({ name }) => {
     tree.root[id].name = name; // TODO: find by id, not index. Will be fixed with database replacement
 
     io.sockets.emit("changeFactoryName", id, tree.root[id]);
@@ -42,31 +48,24 @@ io.on("connection", client => {
 
   //  Create a new empty factory
   client.on("createFactory", () => {
-    tree.root.push({
-      id: tree.root.length,
-      name: "Factory",
-      children: []
+    FactoryRepository.createFactory("factory", () => {
+      FactoryRepository.getTree(res => {
+        io.sockets.emit("getTree", res);
+      });
     });
-
-    io.sockets.emit("getTree", tree);
   });
 
   // Delete a factory on id
   client.on("deleteFactory", ({ id }) => {
-    // TODO: replace with database removal
-    var newTreeRoot = tree.root.filter(factory => {
-      return factory.id != id;
+    FactoryRepository.deleteFactory(id, () => {
+      FactoryRepository.getTree(res => {
+        io.sockets.emit("getTree", res);
+      });
     });
-
-    tree.root = newTreeRoot;
-
-    io.sockets.emit("getTree", tree);
   });
 });
 
 server.listen(process.env.PORT);
-
-console.log(process.env.PORT);
 
 // mock data
 var tree = {
