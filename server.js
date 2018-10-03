@@ -1,3 +1,4 @@
+require("newrelic");
 const app = require("express")();
 var server = require("http").Server(app);
 const io = require("socket.io")(server);
