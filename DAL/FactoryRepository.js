@@ -88,18 +88,13 @@ function changeFactoryName(id, name, cb) {
 }
 
 function generateChildren(id, children, cb) {
-  let findExistingChild = `
+  let findChild = `
     SELECT
       id
     FROM
       Children
     WHERE
       value = ?
-  `;
-
-  let insertChild = `
-    INSERT INTO Children (value)
-    VALUES (?)
   `;
 
   let deleteMapping = `
@@ -113,17 +108,34 @@ function generateChildren(id, children, cb) {
     VALUES (?, ?)
   `;
 
+  let insertChildren = `
+    INSERT INTO Children (value)
+    VALUES (?)
+  `;
+
+  for (let i = 1; i < children.length; i++) {
+    insertChildren = insertChildren.concat(`, (?)`);
+  }
+
+  insertChildren = insertChildren.concat(
+    ` ON DUPLICATE KEY UPDATE value = VALUES(value)`
+  );
+
   //  delete existing children
   pool.getConnection((err, connection) => {
     if (err) return cb(err);
     connection.query(deleteMapping, id, err => {
-      connection.release();
       if (err) return cb(err);
-      //  loop through each child and process
-      loop(children);
+      if (children.length === 0) return cb();
+      connection.query(insertChildren, children, err => {
+        connection.release();
+        if (err) return cb(err);
+        loop(children);
+      });
     });
   });
 
+  // synchronously wait on each iteration for connection to release to prevent pool max limit reached error
   var i = 0;
   var loop = function(arr) {
     processChildren(arr[i], () => {
@@ -139,27 +151,13 @@ function generateChildren(id, children, cb) {
   function processChildren(child, callback) {
     pool.getConnection((err, connection) => {
       if (err) return cb(err);
-      connection.query(findExistingChild, [child], (err, res) => {
+      connection.query(findChild, [child], (err, res) => {
         if (err) return cb(err);
-        if (res.length === 0) {
-          //  if we couldn't find the child value
-          //  insert and create mapping
-          connection.query(insertChild, [child], (err, res) => {
-            if (err) return cb(err);
-            connection.query(createMapping, [res.insertId, id], err => {
-              connection.release();
-              if (err) return cb(err);
-              callback();
-            });
-          });
-        } else {
-          //  use existing child to create mapping
-          connection.query(createMapping, [res[0].id, id], err => {
-            connection.release();
-            if (err) return cb(err);
-            callback();
-          });
-        }
+        connection.query(createMapping, [res[0].id, id], err => {
+          connection.release();
+          if (err) return cb(err);
+          callback();
+        });
       });
     });
   }
