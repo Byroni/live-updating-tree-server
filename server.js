@@ -66,6 +66,8 @@ io.on("connection", client => {
 
 server.listen(process.env.PORT);
 
+console.log(process.env.PORT);
+
 // mock data
 var tree = {
   root: [
