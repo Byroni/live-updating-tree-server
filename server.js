@@ -1,10 +1,10 @@
 require("newrelic");
+require("dotenv").config();
 const app = require("express")();
 var server = require("http").Server(app);
 const io = require("socket.io")(server);
-const FactoryRepository = require("./DAL/FactoryRepository");
-require("dotenv").config();
 
+const FactoryRepository = require("./DAL/FactoryRepository");
 const { allowCors } = require("./middleware/helpers");
 
 app.use(allowCors);
@@ -23,10 +23,17 @@ app.get("status", (req, res) => {
 io.on("connection", client => {
   //  Generate new child nodes based on range and size
   client.on("generateChildren", ({ id, numNodes, lowerBound, upperBound }) => {
-    var children = Array.from({ length: numNodes }, () =>
-      Math.floor(Math.random() * (upperBound - lowerBound) + lowerBound)
-    );
-    io.sockets.emit("generateChildren", id, children);
+    var children = Array.from({ length: numNodes }, () => {
+      return (
+        Math.floor(Math.random() * (upperBound - lowerBound + 1)) +
+        parseInt(lowerBound)
+      );
+    });
+
+    FactoryRepository.generateChildren(id, children, err => {
+      if (err != null) return client.emit("onError", err);
+      emitUpdatedTree();
+    });
   });
 
   //  Get the tree
