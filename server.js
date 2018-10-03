@@ -1,6 +1,8 @@
 const app = require("express")();
 var server = require("http").Server(app);
 const io = require("socket.io")(server);
+require("dotenv").config();
+
 const { allowCors } = require("./middleware/helpers");
 
 app.use(allowCors);
@@ -61,7 +63,7 @@ io.on("connection", client => {
   });
 });
 
-server.listen(5000);
+server.listen(process.env.PORT);
 
 // mock data
 var tree = {
