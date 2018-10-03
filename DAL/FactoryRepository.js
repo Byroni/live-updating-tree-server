@@ -17,10 +17,10 @@ function getTree(cb) {
   var tree = {};
 
   pool.getConnection((err, connection) => {
-    if (err) throw err;
+    if (err) return cb(null, err);
     connection.query(query, (err, res) => {
       connection.release();
-      if (err) throw err;
+      if (err) return cb(null, err);
 
       res.forEach(factory => {
         if (factory.children != null)
@@ -29,7 +29,7 @@ function getTree(cb) {
 
       tree.root = res;
 
-      cb(tree);
+      cb(tree, null);
     });
   });
 }
@@ -41,12 +41,12 @@ function createFactory(name, cb) {
     `;
 
   pool.getConnection((err, connection) => {
-    if (err) throw err;
+    if (err) return cb(err);
     connection.query(query, [name], err => {
       connection.release();
-      if (err) throw err;
+      if (err) return cb(err);
 
-      cb();
+      cb(null);
     });
   });
 }
@@ -58,12 +58,31 @@ function deleteFactory(id, cb) {
     `;
 
   pool.getConnection((err, connection) => {
-    if (err) throw err;
+    if (err) return cb(err);
     connection.query(query, [id], err => {
       connection.release();
-      if (err) throw err;
+      if (err) return cb(err);
 
-      cb();
+      cb(null);
+    });
+  });
+}
+
+function changeFactoryName(id, name, cb) {
+  let query = `
+    UPDATE Factories
+    SET name = ?
+    WHERE
+      id = ?
+  `;
+
+  pool.getConnection((err, connection) => {
+    if (err) return cb(err);
+    connection.query(query, [name, id], err => {
+      connection.release();
+      if (err) return cb(err);
+
+      cb(null);
     });
   });
 }
@@ -71,5 +90,6 @@ function deleteFactory(id, cb) {
 module.exports = {
   getTree,
   createFactory,
-  deleteFactory
+  deleteFactory,
+  changeFactoryName
 };

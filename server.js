@@ -31,55 +31,42 @@ io.on("connection", client => {
 
   //  Get the tree
   client.on("getTree", () => {
-    try {
-      FactoryRepository.getTree(res => {
-        client.emit("getTree", res);
-      });
-    } catch (e) {
-      console.log(e);
-    }
+    FactoryRepository.getTree((res, err) => {
+      if (err != null) client.emit("onError", err);
+      client.emit("getTree", res);
+    });
   });
 
   //  Change the factory name
-  client.on("changeFactoryName", ({ name }) => {
-    tree.root[id].name = name; // TODO: find by id, not index. Will be fixed with database replacement
-
-    io.sockets.emit("changeFactoryName", id, tree.root[id]);
+  client.on("changeFactoryName", ({ id, name }) => {
+    FactoryRepository.changeFactoryName(id, name, err => {
+      if (err != null) return client.emit("onError", err);
+      emitUpdatedTree();
+    });
   });
 
   //  Create a new empty factory
   client.on("createFactory", () => {
-    FactoryRepository.createFactory("factory", () => {
-      FactoryRepository.getTree(res => {
-        io.sockets.emit("getTree", res);
-      });
+    FactoryRepository.createFactory("factory", err => {
+      if (err != null) return client.emit("onError", err);
+      emitUpdatedTree();
     });
   });
 
   // Delete a factory on id
   client.on("deleteFactory", ({ id }) => {
-    FactoryRepository.deleteFactory(id, () => {
-      FactoryRepository.getTree(res => {
-        io.sockets.emit("getTree", res);
-      });
+    FactoryRepository.deleteFactory(id, err => {
+      if (err != null) return client.emit("onError", err);
+      emitUpdatedTree();
     });
   });
 });
 
-server.listen(process.env.PORT);
+function emitUpdatedTree() {
+  FactoryRepository.getTree((res, err) => {
+    if (err != null) return client.emit("onError", err);
+    io.sockets.emit("getTree", res);
+  });
+}
 
-// mock data
-var tree = {
-  root: [
-    {
-      id: 0,
-      name: "factory",
-      children: [332, 12, 6, 7, 2, 9, 332, 12, 6, 7, 2, 9, 13, 14, 18]
-    },
-    {
-      id: 1,
-      name: "factory",
-      children: [9, 32]
-    }
-  ]
-};
+server.listen(process.env.PORT);
