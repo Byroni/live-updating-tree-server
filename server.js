@@ -24,6 +24,7 @@ io.on("connection", client => {
     var children = Array.from({ length: numNodes }, () =>
       Math.floor(Math.random() * (upperBound - lowerBound) + lowerBound)
     );
+    console.log(id, numNodes, lowerBound, upperBound, children);
     io.sockets.emit("generateChildren", id, children);
   });
 
