@@ -9,15 +9,9 @@ const { allowCors } = require("./middleware/helpers");
 
 app.use(allowCors);
 
-// get tree
-app.get("/tree", (req, res) => {
-  // redirect to status page
-  res.send(tree);
-});
-
 // status enpoint
 app.get("status", (req, res) => {
-  res.send(tree);
+  res.send({ status: "ok" });
 });
 
 io.on("connection", client => {
@@ -26,13 +20,14 @@ io.on("connection", client => {
     var children = Array.from({ length: numNodes }, () => {
       return (
         Math.floor(Math.random() * (upperBound - lowerBound + 1)) +
-        parseInt(lowerBound)
+        parseInt(lowerBound, 10)
       );
     });
 
     FactoryRepository.generateChildren(id, children, err => {
       if (err != null) return client.emit("onError", err);
       emitUpdatedTree();
+      client.emit("unlockGenerateButton");
     });
   });
 
